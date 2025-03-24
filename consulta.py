@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
-import datetime
 import io
+import os
 import hashlib
+import json
 
 # -----------------------------
-# 1) SETUP COSTANTI / COLONNE
+# 1) Costanti e colonne previste
 # -----------------------------
 COLONNE = [
     "Tipo Ente",
@@ -21,21 +22,32 @@ COLONNE = [
     "Responsabile/Segretario"
 ]
 
-# Per questa demo manteniamo un dizionario utenti {email: hashed_password}
-# Ovviamente in un sistema reale potresti volerlo in un DB esterno o in un file CSV.
-REGISTERED_USERS = {
-    # "test@example.com": hash_password("password123")
-}
+# Nome del file dove salviamo gli utenti
+USERS_FILE = "users.json"
 
+# -----------------------------
+# 2) Funzioni di supporto
+# -----------------------------
 def hash_password(pwd: str) -> str:
+    """Applica SHA-256 alla password."""
     return hashlib.sha256(pwd.encode('utf-8')).hexdigest()
 
 def verify_password(pwd: str, pwd_hash: str) -> bool:
+    """Verifica che l'hash di pwd corrisponda a pwd_hash."""
     return hashlib.sha256(pwd.encode('utf-8')).hexdigest() == pwd_hash
 
-# -----------------------------
-# 2) GESTIONE DATI
-# -----------------------------
+def load_users() -> dict:
+    """Carica gli utenti da file JSON, se esiste, altrimenti ritorna un dizionario vuoto."""
+    if not os.path.exists(USERS_FILE):
+        return {}
+    with open(USERS_FILE, "r") as f:
+        return json.load(f)
+
+def save_users(users_dict: dict):
+    """Salva il dizionario degli utenti su file JSON."""
+    with open(USERS_FILE, "w") as f:
+        json.dump(users_dict, f)
+
 def carica_dati_da_excel(uploaded_file):
     """Carica i dati Excel in un DataFrame, aggiunge colonne mancanti e riempie i NaN."""
     df = pd.read_excel(uploaded_file)
@@ -56,7 +68,7 @@ def salva_dati_in_memory():
     return buffer
 
 # -----------------------------
-# 3) GESTIONE AUTENTICAZIONE
+# 3) Gestione Autenticazione
 # -----------------------------
 def mostra_login():
     """Mostra il form di login e gestisce l'autenticazione utente."""
@@ -65,10 +77,11 @@ def mostra_login():
     password = st.text_input("Password", type="password")
     
     if st.button("Entra"):
-        # Verifica se la mail è in REGISTERED_USERS e se la pwd combacia
-        if email in REGISTERED_USERS and verify_password(password, REGISTERED_USERS[email]):
+        users_dict = load_users()  # Carichiamo sempre la versione aggiornata
+        if email in users_dict and verify_password(password, users_dict[email]):
             st.session_state["user"] = email
             st.success("Login effettuato con successo!")
+            # Rerun per aggiornare la UI
             st.experimental_rerun()
         else:
             st.error("Credenziali non valide, riprova.")
@@ -89,14 +102,19 @@ def mostra_registrazione():
             st.warning("Le password non coincidono.")
             return
         
-        if email in REGISTERED_USERS:
+        users_dict = load_users()
+        if email in users_dict:
             st.warning("Questa email è già registrata.")
             return
         
-        # Aggiungiamo l'utente al dizionario
-        REGISTERED_USERS[email] = hash_password(password)
+        # Aggiungiamo l'utente al file JSON
+        users_dict[email] = hash_password(password)
+        save_users(users_dict)
         st.success("Registrazione completata! Ora puoi effettuare il login.")
 
+# -----------------------------
+# 4) Funzioni UI area riservata
+# -----------------------------
 def mostra_area_riservata():
     """La sezione di gestione dei dati, visibile solo a chi è loggato."""
     st.sidebar.write(f"Utente loggato: **{st.session_state['user']}**")
@@ -131,9 +149,6 @@ def mostra_area_riservata():
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# -----------------------------
-# 4) FUNZIONI UI SPECIFICHE (Consulta / Modifica)
-# -----------------------------
 def mostra_consulta():
     st.subheader("Filtro e Visualizzazione")
     df = st.session_state.df
@@ -160,6 +175,7 @@ def mostra_consulta():
             st.markdown("### Dettagli del record")
             for col in COLONNE:
                 value = record[col]
+                # Se la colonna è un link, mostriamo un link cliccabile
                 if "link" in col.lower() and isinstance(value, str) and (value.startswith("http://") or value.startswith("https://")):
                     st.markdown(f"**{col}:** [Link]({value})", unsafe_allow_html=True)
                 else:
@@ -215,6 +231,7 @@ def mostra_modifica():
                 ed_telefono = st.text_input("Telefono Ufficio Personale/Concorsi", value=str(df.at[idx, "Telefono Ufficio Personale/Concorsi"]))
                 ed_link = st.text_input("Link Concorsi/Personale", value=df.at[idx, "Link Concorsi/Personale"])
                 ed_resp = st.text_input("Responsabile/Segretario", value=df.at[idx, "Responsabile/Segretario"])
+                
                 submitted_edit = st.form_submit_button("Salva Modifiche")
                 if submitted_edit:
                     st.session_state.df.at[idx, "Istituto"] = ed_istituto.strip()
@@ -245,7 +262,7 @@ def main():
         elif scelta == "Registrazione":
             mostra_registrazione()
     else:
-        # Se è loggato, mostriamo l'area riservata con CRUD
+        # Se è loggato, mostriamo l'area riservata con funzioni CRUD
         mostra_area_riservata()
 
 if __name__ == "__main__":
