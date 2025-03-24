@@ -50,7 +50,7 @@ def save_users(users_dict: dict):
 
 def carica_dati_da_excel(uploaded_file):
     """Carica i dati Excel in un DataFrame, aggiunge colonne mancanti e riempie i NaN."""
-    df = pd.read_csv(uploaded_file)
+    df = pd.read_excel(uploaded_file)
     for col in COLONNE:
         if col not in df.columns:
             df[col] = ""
@@ -127,12 +127,11 @@ def mostra_area_riservata():
 
     # Se l'utente non ha ancora caricato un file, o se vogliamo consentire il caricamento di un nuovo file:
     if "df" not in st.session_state:
-        st.info("Carica un file csv per iniziare.")
-        uploaded_file = st.file_uploader("Carica il file Excel", type=["csv"])
-        if uploaded_file is not None:
-            st.session_state.df = carica_dati_da_excel(uploaded_file)
-            st.success("File caricato con successo.")
-            st.experimental_rerun()
+        st.info("Carica un file xlsx per iniziare.")
+    uploaded_file = st.file_uploader("Carica file Excel", type=["xlsx", "xls"])
+    if uploaded_file is not None:
+        df = pd.read_excel(uploaded_file)
+        st.dataframe(df)
         return
 
     # Mostriamo la parte di consultazione e modifica
