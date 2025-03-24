@@ -4,6 +4,7 @@ import io
 import os
 import hashlib
 import json
+import openpyxl
 
 # -----------------------------
 # 1) Costanti e colonne previste
@@ -125,7 +126,7 @@ def mostra_area_riservata():
     
     st.title("Gestione Enti / Istituti")
 
-    # Se l'utente non ha ancora caricato un file, o se vogliamo consentire il caricamento di un nuovo file:
+    # Se l'utente non ha ancora caricato un file, o se vogliamo consentire il caricamento di un nuovo file, ok
     if "df" not in st.session_state:
         st.info("Carica un file xlsx per iniziare.")
     uploaded_file = st.file_uploader("Carica file Excel", type=["xlsx", "xls"])
