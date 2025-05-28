@@ -129,10 +129,14 @@ def mostra_area_riservata():
     # Se l'utente non ha ancora caricato un file, o se vogliamo consentire il caricamento di un nuovo file, ok
     if "df" not in st.session_state:
         st.info("Carica un file xlsx per iniziare.")
+
     uploaded_file = st.file_uploader("Carica file Excel", type=["xlsx", "xls"])
     if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        st.dataframe(df)
+        st.session_state.df = carica_dati_da_excel(uploaded_file)
+        st.success("File caricato con successo")
+        st.dataframe(st.session_state.df)
+
+    if "df" not in st.session_state:
         return
 
     # Mostriamo la parte di consultazione e modifica
